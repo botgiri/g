@@ -1,0 +1,101 @@
+#Implementing a VAE (Variable Autoencoders (VAEs)) to generate new data points in a
+dataset like MNIST.
+
+# Install UMAP for dimensionality reduction (optional for this example)
+!pip install umap-learn
+
+# Import necessary libraries
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.model_selection import train_test_split
+from tensorflow.keras import layers, losses
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Model
+import umap.umap_ as umap
+
+# Load MNIST data (handwritten digit images)
+(x_train, _), (x_test, _) = mnist.load_data()
+
+# Normalize the pixel values to the range [0, 1]
+x_train = x_train.astype('float32') / 255.
+x_test = x_test.astype('float32') / 255.
+
+# Print shapes to confirm data dimensions
+print(x_train.shape)  # Expected: (60000, 28, 28)
+print(x_test.shape)   # Expected: (10000, 28, 28)
+
+# Set size of the latent (compressed) representation
+latent_dim = 64
+
+# Define the Autoencoder model using subclassing API
+class Autoencoder(Model):
+    def __init__(self, latent_dim):
+        super(Autoencoder, self).__init__()
+        self.latent_dim = latent_dim
+
+        # Encoder: flattens the input and compresses it into the latent space
+        self.encoder = tf.keras.Sequential([
+            layers.Flatten(),
+            layers.Dense(latent_dim, activation='relu'),
+        ])
+
+        # Decoder: reconstructs the image from the latent representation
+        self.decoder = tf.keras.Sequential([
+            layers.Dense(784, activation='sigmoid'),
+            layers.Reshape((28, 28))
+        ])
+
+    # Define the forward pass
+    def call(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+# Instantiate the autoencoder model
+autoencoder = Autoencoder(latent_dim)
+
+# Compile the model with Adam optimizer and MSE loss function
+autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
+
+# Train the model using the training data
+autoencoder.fit(
+    x_train, x_train,                 # Autoencoder tries to reconstruct its own input
+    epochs=10,                        # Train for 10 epochs
+    shuffle=True,                     # Shuffle the data each epoch
+    validation_data=(x_test, x_test) # Evaluate reconstruction on test data
+)
+
+# Encode and decode the test images
+encoded_imgs = autoencoder.encoder(x_test).numpy()
+decoded_imgs = autoencoder.decoder(encoded_imgs).numpy()
+
+# Optional: Flatten the decoded images for further processing (not used here)
+from keras.layers import Flatten
+decoded = decoded_imgs.flatten()
+
+# Display original and reconstructed images for comparison
+n = 10  # Number of images to display
+plt.figure(figsize=(20, 4))
+
+for i in range(n):
+    # Original images
+    ax = plt.subplot(2, n, i + 1)
+    plt.imshow(x_test[i])
+    plt.title("Original")
+    plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # Reconstructed images
+    ax = plt.subplot(2, n, i + 1 + n)
+    plt.imshow(decoded_imgs[i])
+    plt.title("Reconstructed")
+    plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+plt.show()
