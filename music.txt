@@ -1,0 +1,62 @@
+Generating and manipulating music using
+Audiocraft’s MusicGen, including unconditional
+generation, continuation, and chroma-based melody
+transformation.
+
+# Install necessary packages
+!pip install -U git+https://github.com/facebookresearch/audiocraft.git  # Install the latest version of Audiocraft from GitHub
+!apt-get -y install ffmpeg  # Install FFmpeg for audio processing
+
+# Import required libraries
+import numpy as np  # For numerical operations
+import torch  # PyTorch for tensor operations
+import torchaudio  # For audio processing tasks
+import IPython.display as ipd  # To display audio in Jupyter notebooks
+from audiocraft.models import MusicGen  # For generating music
+from audiocraft.data.audio import audio_write  # For saving audio files
+
+# Generate a simple sine wave melody
+duration = 3.0  # Duration of the melody in seconds
+sample_rate = 32000  # Sample rate in Hz
+t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)  # Time vector
+
+# Create a melody by summing sine waves of different frequencies (A4, C#5, E5)
+melody_np = 0.5 * (
+    np.sin(2 * np.pi * 440 * t) +      # A4
+    np.sin(2 * np.pi * 554.37 * t) +   # C#5
+    np.sin(2 * np.pi * 659.25 * t)     # E5
+).astype(np.float32)
+
+# Convert the melody to a PyTorch tensor and save it as a WAV file
+melody_tensor = torch.from_numpy(melody_np).unsqueeze(0)
+torchaudio.save("melody.wav", melody_tensor, sample_rate)
+ipd.Audio("melody.wav")  # Play the generated melody
+
+# Load the pre-trained MusicGen model for melody generation
+model = MusicGen.get_pretrained("melody")
+model.set_generation_params(duration=8)  # Set the generation duration to 8 seconds
+
+# Generate music based on a text prompt (without melody)
+gen_text = ["lofi beat with soft piano and chill vibes"]
+uncond_music = model.generate(gen_text)
+
+# Save and play the generated music
+audio_write("unconditional", uncond_music[0].cpu(), model.sample_rate)
+ipd.Audio("unconditional.wav")
+
+# Resample the generated melody to match the model's sample rate
+melody_resampled = torchaudio.functional.resample(
+    melody_tensor, orig_freq=sample_rate, new_freq=model.sample_rate
+)
+
+# Generate music based on both text prompt and the provided melody
+model.set_generation_params(duration=10)  # Set the generation duration to 10 seconds
+melody_gen = model.generate_with_chroma(
+    descriptions=["cinematic orchestral build-up with emotional strings"],
+    melody_wavs=melody_resampled,
+    melody_sample_rate=model.sample_rate
+)
+
+# Save and play the generated music with the transformed melody
+audio_write("melody_transform", melody_gen[0].cpu(), model.sample_rate)
+ipd.Audio("melody_transform.wav")

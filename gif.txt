@@ -1,0 +1,165 @@
+Practical on Implementing a VAE (Variable
+Autoencoders [VAEs]) to generate new data points in
+a dataset like MNIST and GIF on the same
+
+# Install imageio for creating GIFs
+!pip install imageio
+
+# Import necessary libraries
+import tensorflow as tf
+from tensorflow.keras import layers
+import numpy as np
+import matplotlib.pyplot as plt
+import imageio
+import os
+from tensorflow.keras.datasets import mnist
+
+# Set random seeds for reproducibility
+tf.random.set_seed(42)
+np.random.seed(42)
+
+# Load MNIST handwritten digits dataset
+(x_train, _), (_, _) = mnist.load_data()
+
+# Normalize images to range [-1, 1] for better GAN training
+x_train = (x_train.astype('float32') / 255.0) * 2.0 - 1.0
+x_train = x_train.reshape(-1, 28, 28, 1)  # Add channel dimension for Conv layers
+
+# Create batches of training data
+BATCH_SIZE = 256
+train_dataset = tf.data.Dataset.from_tensor_slices(x_train).shuffle(60000).batch(BATCH_SIZE)
+
+# --------------------------
+# Define Generator Model
+# --------------------------
+def build_generator(latent_dim):
+    model = tf.keras.Sequential([
+        layers.Dense(7 * 7 * 256, use_bias=False, input_shape=(latent_dim,)),  # Fully connected layer
+        layers.BatchNormalization(),  # Normalize for stable training
+        layers.LeakyReLU(),  # Activation function
+        layers.Reshape((7, 7, 256)),  # Reshape to start convolution
+        layers.Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False),
+        layers.BatchNormalization(),
+        layers.LeakyReLU(),
+        layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False),
+        layers.BatchNormalization(),
+        layers.LeakyReLU(),
+        layers.Conv2DTranspose(1, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh')  # Output image
+    ])
+    return model
+
+# --------------------------
+# Define Discriminator Model
+# --------------------------
+def build_discriminator():
+    model = tf.keras.Sequential([
+        layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same', input_shape=[28, 28, 1]),
+        layers.LeakyReLU(),
+        layers.Dropout(0.3),  # Prevent overfitting
+        layers.Conv2D(128, (5, 5), strides=(2, 2), padding='same'),
+        layers.LeakyReLU(),
+        layers.Dropout(0.3),
+        layers.Flatten(),
+        layers.Dense(1)  # Output: Real or Fake (no activation for logits)
+    ])
+    return model
+
+# --------------------------
+# Define Loss Functions
+# --------------------------
+cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+
+def generator_loss(fake_output):
+    # Generator tries to fool discriminator, so labels are 'real' (ones)
+    return cross_entropy(tf.ones_like(fake_output), fake_output)
+
+def discriminator_loss(real_output, fake_output):
+    # Discriminator tries to classify real as real and fake as fake
+    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
+    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
+    return real_loss + fake_loss
+
+# --------------------------
+# Define Optimizers
+# --------------------------
+generator_optimizer = tf.keras.optimizers.Adam(1e-4)
+discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
+
+# --------------------------
+# Instantiate Models
+# --------------------------
+latent_dim = 100  # Size of random noise vector
+generator = build_generator(latent_dim)
+discriminator = build_discriminator()
+
+# --------------------------
+# Training Loop
+# --------------------------
+EPOCHS = 50
+seed = tf.random.normal([16, latent_dim])  # Fixed noise vector to visualize progress
+
+# Single training step (auto-diff + optimizer steps)
+@tf.function
+def train_step(images):
+    noise = tf.random.normal([BATCH_SIZE, latent_dim])  # Random noise input
+
+    with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+        generated_images = generator(noise, training=True)
+
+        real_output = discriminator(images, training=True)
+        fake_output = discriminator(generated_images, training=True)
+
+        gen_loss = generator_loss(fake_output)
+        disc_loss = discriminator_loss(real_output, fake_output)
+
+    # Backpropagation
+    gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+    gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
+
+    generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+
+# Full training function over all epochs
+def train(dataset, epochs):
+    for epoch in range(epochs):
+        for image_batch in dataset:
+            train_step(image_batch)
+
+        # Save sample generated image at each epoch
+        generate_and_save_images(generator, epoch + 1, seed)
+        print(f'Epoch {epoch + 1} completed')
+
+# --------------------------
+# Save & Visualize Generated Images
+# --------------------------
+def generate_and_save_images(model, epoch, test_input):
+    predictions = model(test_input, training=False)  # Generate fake images
+    fig = plt.figure(figsize=(4, 4))
+
+    for i in range(predictions.shape[0]):
+        plt.subplot(4, 4, i + 1)
+        plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')  # Rescale to [0, 255]
+        plt.axis('off')
+
+    # Save the figure
+    if not os.path.exists('generated_images'):
+        os.makedirs('generated_images')
+    plt.savefig(f'generated_images/image_at_epoch_{epoch:04d}.png')
+    plt.close()
+
+# Train the DCGAN
+train(train_dataset, EPOCHS)
+
+# --------------------------
+# Create GIF from Saved Images
+# --------------------------
+def create_gif():
+    with imageio.get_writer('dcgan_mnist.gif', mode='I') as writer:
+        filenames = sorted([f'generated_images/image_at_epoch_{i:04d}.png' for i in range(1, EPOCHS + 1)])
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+
+# Generate the GIF
+create_gif()
+print("GIF saved as 'dcgan_mnist.gif'")

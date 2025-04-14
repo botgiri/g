@@ -1,0 +1,138 @@
+Developing a history chatbot using NLP and vector
+embeddings for engaging conversations on historical
+events, with an enhanced knowledge base for
+generating synthetic historical text data.
+
+# Install necessary packages
+!pip install streamlit  # Streamlit for creating the web interface
+!pip install langchain_community  # LangChain for building language model applications
+!pip install pypdf  # PyPDF for PDF processing
+!pip install faiss-cpu  # FAISS for efficient similarity search
+
+# Importing essential libraries
+import streamlit as st  # Streamlit for web app functionalities
+import os  # For interacting with the operating system
+import time  # For measuring execution time
+
+# Importing modules from LangChain
+from langchain.llms import HuggingFaceHub  # For accessing Hugging Face models
+from langchain.text_splitter import RecursiveCharacterTextSplitter  # For splitting text into chunks
+from langchain.embeddings import HuggingFaceEmbeddings  # For generating embeddings
+from langchain.chains.combine_documents import create_stuff_documents_chain  # For combining document chains
+from langchain.prompts import PromptTemplate  # For creating prompt templates
+from langchain.vectorstores import FAISS  # For vector storage and similarity search
+from langchain.document_loaders import PyPDFDirectoryLoader  # For loading PDFs from a directory
+from langchain.chains import RetrievalQA  # For setting up the retrieval-based QA system
+
+# Importing Hugging Face's login function
+from huggingface_hub import login
+
+# Authenticate with Hugging Face using your API token
+login("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")
+
+# Function to handle PDF upload, embedding, and vector store creation
+def vector_embedding():
+    # Define the directory to store uploaded PDFs
+    folder_path = "/content/my_folder"
+    # Create the directory if it doesn't exist
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Directory {folder_path} created.")
+    
+    # Upload PDF files
+    uploaded = st.file_uploader("Choose a PDF file", type="pdf", accept_multiple_files=True)
+    if uploaded:
+        # Save uploaded files to the specified directory
+        for file in uploaded:
+            with open(os.path.join(folder_path, file.name), "wb") as f:
+                f.write(file.getbuffer())
+        st.write(f"Saved {len(uploaded)} file(s) to {folder_path}.")
+    else:
+        st.write("No files uploaded.")
+        return None
+
+    # Initialize embeddings using a pre-trained model
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    # Load PDFs from the directory
+    loader = PyPDFDirectoryLoader(folder_path)
+    docs = loader.load()
+
+    # Check if any documents were loaded
+    if not docs:
+        st.write(f"No PDFs found in {folder_path}. Please upload some PDFs.")
+        return None
+
+    # Split documents into chunks for processing
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+    final_documents = text_splitter.split_documents(docs)
+
+    # Create a FAISS vector store from the documents and embeddings
+    vectors = FAISS.from_documents(final_documents, embeddings)
+    return vectors
+
+# Function to handle the QA system
+def qa_system(vectors):
+    # Input field for the user's query
+    query = st.text_input("Enter your question:")
+    if query:
+        # Create a retriever from the vector store
+        retriever = vectors.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+        # Initialize the retrieval-based QA system
+        retrieval_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever
+        )
+
+        # Measure the response time
+        start = time.process_time()
+        response = retrieval_chain({"query": query})
+        response_time = time.process_time() - start
+
+        # Display the response and the time taken
+        st.write(f"Response time: {response_time:.2f} seconds")
+        if "result" in response:
+            st.write("Answer:", response["result"])
+        else:
+            st.write("No answer found.")
+    else:
+        st.write("Please enter a question.")
+
+# Main function to run the Streamlit app
+def main():
+    # Authenticate with Hugging Face if not already authenticated
+    if not login.get_user():
+        login("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")
+
+    # Initialize the language model
+    llm = HuggingFaceHub(
+        repo_id="mistralai/Mistral-7B-Instruct-v0.2",
+        model_kwargs={"temperature": 0.7},
+        huggingfacehub_api_token="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"
+    )
+
+    # Create a prompt template for the QA system
+    prompt = PromptTemplate(
+        input_variables=["context", "input"],
+        template="""Answer the questions based on the provided context only.
+        Please provide the most accurate response based on the question.
+
+        <context>
+        {context}
+        </context>
+        Question: {input}"""
+    )
+
+    # Display the title of the web app
+    st.title("PDF Question Answering System")
+
+    # Call the vector_embedding function to process PDFs
+    vectors = vector_embedding()
+    if vectors:
+        # Run the QA system if vectors are ready
+        qa_system(vectors)
+
+# Run the main function when the script is executed
+if __name__ == "__main__":
+    main()

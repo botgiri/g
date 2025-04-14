@@ -1,0 +1,141 @@
+Implementing YouTube video summarization,
+Named Entity Recognition (NER), and sentiment
+analysis using speech-to-text and NLP techniques.
+
+
+!pip install yt-dlp speechrecognition transformers spacy
+!python -m spacy download en_core_web_sm
+from yt_dlp import YoutubeDL
+import speech_recognition as sr
+from transformers import pipeline
+import spacy
+
+def download_youtube_audio(url):
+  ydl_opts={
+      'format':'bestaudio/best',
+      'outtmpl':'audio.%(ext)s',
+      'postprocessors':[{
+          'key':'FFmpegExtractAudio',
+          'preferredcodec':'wav',
+          'preferredquality':'192',
+      }],
+  }
+  try:
+    with YoutubeDL(ydl_opts) as ydl:
+      ydl.download([url])
+    return "audio.wav"
+  except Exception as e:
+    print(f'Error downloading audio:{e}')
+    return None
+
+
+
+def transcribe_audio_to_text(audio_file):
+  recognizer=sr.Recognizer()
+  try:
+    with sr.AudioFile(audio_file) as source:
+      audio=recognizer.record(source)
+    text=recognizer.recognize_google(audio) #Using Google Speech Recognition
+    return text
+  except sr.UnknownValueError:
+    return "Google speech Recognition could not understand audio"
+  except sr.RequestError as e:
+    return f"Could not request results from Google Speech Recognition service: {e}"
+  except Exception as e:
+    return f"Error transcribing audio:{e}"
+
+
+
+def summarize_text(text):
+  if len(text.split())<50:
+    return "Text is too short for summarization"
+  summarizer=pipeline("summarization")
+  try:
+    summary=summarizer(text,max_length=130, min_length=30, do_sample=False)
+    return summary[0]['summary_text']
+  except Exception as e:
+    return f"Error summarizing text: {e}"
+
+
+youtube_url= input("Enter the Youtube Url:")
+
+#Download audio
+audio_file=download_youtube_audio(youtube_url)
+
+if audio_file:
+  print("Audio downloaded successfully")
+else:
+  print("failed to download audio")
+
+
+
+if audio_file:
+  transcribed_text=transcribe_audio_to_text(audio_file)
+  if transcribed_text:
+    print("Transcription completed.")
+    print("Transcribed Text:")
+    print(transcribed_text)
+  else:
+    print("Failed to transcribe audio")
+
+
+
+def perform_ner(text):
+  try:
+    nlp=spacy.load("en_core_web_sm")
+    doc=nlp(text)
+    entities=[(ent.text,ent.label_) for ent in doc.ents]
+    return entities
+  except Exception as e:
+    return f"Error performing NER:{e}"
+
+
+
+
+if transcribed_text:
+  entities=perform_ner(transcribed_text)
+  if isinstance(entities,list):
+    print("named Entities")
+    for entity in entities:
+      print(f"Text:{entity[0]},label:{entity[1]}")
+  else:
+    print(entities)
+
+
+
+from spacy import displacy
+
+if transcribed_text:
+  entities=perform_ner(transcribed_text)
+  if isinstance(entities,list):
+    print("named Entities")
+    for entity in entities:
+      print(f"Text:{entity[0]},label:{entity[1]}")
+
+    nlp=spacy.load("en_core_web_sm")
+    doc=nlp(transcribed_text)
+
+    print("Visualizing Named Entities")
+    displacy.render(doc,style="ent",jupyter=True)
+  else:
+    print(entities)
+
+
+def tone_of_text(text):
+  try:
+    sentiment_pipeline=pipeline("sentiment-analysis")
+    result=sentiment_pipeline(text)
+    return result
+  except Exception as e:
+    return f"Error performing sentiment analysis"
+
+
+if transcribed_text:
+  sentiment=tone_of_text(transcribed_text)
+
+  if isinstance(sentiment,list):
+    print("Sentiment Analysis")
+    print(sentiment)
+  else:
+    print(sentiment)
+

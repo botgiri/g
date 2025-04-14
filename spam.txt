@@ -1,0 +1,194 @@
+Building a spam classification model using BERT to
+differentiate between spam and ham messages,
+leveraging deep learning techniques in PyTorch.!pip install datasets
+
+!pip install datasets
+# Import libraries
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torch.optim import AdamW
+from datasets import load_dataset
+import numpy as np
+import pandas as pd
+
+# Use GPU if available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(device)
+
+# Load spam dataset
+df = pd.read_csv('spam.csv')
+df.head()
+
+# Convert labels to binary (ham=0, spam=1)
+df.Category = df.Category.map({'ham': 0, 'spam': 1})
+df.head()
+
+# Count the number of ham and spam messages
+df.Category.value_counts()
+
+# Filter all spam messages
+df_spam = df[df.Category == 1]
+df_spam.shape
+
+# Randomly sample 1000 ham messages to balance the dataset
+df_ham_small = df[df.Category == 0].sample(1000)
+df_ham_small.shape
+
+# Combine spam and sampled ham into a small balanced dataset
+df_small = pd.concat([df_spam, df_ham_small])
+df_small.Category.value_counts()
+
+# Split into train and test sets
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(df_small.Message, df_small.Category, test_size=0.2, random_state=5)
+
+# Check class distribution in training labels
+y_train.value_counts()
+
+# Check class distribution in test labels
+y_test.value_counts()
+
+# Load pre-trained BERT tokenizer
+from transformers import BertTokenizer
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+# Function to tokenize text and return input_ids, attention_mask, and labels
+def tokenize_function(texts, labels):
+    encodings = tokenizer(texts, padding="max_length", max_length=128, truncation=True, return_tensors='pt')
+    return encodings['input_ids'], encodings['attention_mask'], torch.tensor(labels, dtype=torch.float)
+
+# Test tokenization
+tokenize_function(["Hurry up, Click here", "I will see you tomorrow"], [1, 0])
+
+# Prepare training data
+train_input_ids, train_attention_mask, train_labels = tokenize_function(X_train.values.tolist(), y_train.values.tolist())
+
+# Prepare test data
+val_input_ids, val_attention_mask, val_labels = tokenize_function(X_test.values.tolist(), y_test.values.tolist())
+
+# Wrap tokenized data into TensorDataset
+train_dataset = torch.utils.data.TensorDataset(train_input_ids, train_attention_mask, train_labels)
+val_dataset = torch.utils.data.TensorDataset(val_input_ids, val_attention_mask, val_labels)
+
+# Create data loaders
+batch_size = 64
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+# Load pre-trained BERT model (for checking hidden size)
+from transformers import BertModel
+bert = BertModel.from_pretrained('google-bert/bert-base-uncased')
+print(bert.config.hidden_size)  # Typically 768 for BERT-base
+
+# Define custom classifier model using BERT
+class SentimentClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
+
+        # Freeze BERT weights
+        for param in self.bert.parameters():
+            param.requires_grad = False
+
+        # Define custom classification head
+        self.classifier = nn.Sequential(
+            nn.Linear(self.bert.config.hidden_size, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, input_ids, attention_mask):
+        bert_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        # Use [CLS] token representation as sentence embedding
+        sentence_embedding = bert_output.last_hidden_state[:, 0, :]
+        return self.classifier(sentence_embedding)
+
+# Instantiate model, loss function and optimizer
+model = SentimentClassifier()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.BCELoss()
+
+# Move model and loss function to device (GPU if available)
+model = model.to(device)
+criterion = criterion.to(device)
+
+# ----------- TRAINING LOOP -----------
+
+epochs = 1  # Set number of training epochs
+
+for epoch in range(epochs):
+    model.train()
+    total_train_loss = 0
+
+    for batch, (input_ids, attention_mask, labels) in enumerate(train_loader):
+        # Move data to device
+        input_ids = input_ids.to(device)
+        attention_mask = attention_mask.to(device)
+        labels = labels.to(device, dtype=torch.float)
+
+        optimizer.zero_grad()
+        outputs = model(input_ids, attention_mask).squeeze()
+
+        # Compute loss and update model
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        print(f"Batch: {batch}, Epoch: {epoch}, Loss:  {loss.item():.2f}")
+        total_train_loss += loss.item()
+
+    avg_train_loss = total_train_loss / len(train_loader)
+    print(f'Epoch {epoch + 1}/{epochs}, Training Loss: {avg_train_loss:.4f}')
+
+# ----------- EVALUATION LOOP -----------
+
+model.eval()
+total_val_loss = 0
+correct_predictions = 0
+
+with torch.no_grad():
+    for input_ids, attention_mask, labels in val_loader:
+        input_ids = input_ids.to(device)
+        attention_mask = attention_mask.to(device)
+        labels = labels.to(device, dtype=torch.float)
+
+        outputs = model(input_ids, attention_mask).squeeze()
+        loss = criterion(outputs, labels.view_as(outputs))
+        total_val_loss += loss.item()
+
+        preds = (outputs > 0.5).float()  # Threshold = 0.5
+        correct_predictions += torch.sum(preds == labels)
+
+avg_val_loss = total_val_loss / len(val_loader)
+val_accuracy = correct_predictions.double() / len(val_dataset)
+print(f'Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}')
+
+# ----------- PREDICTION FUNCTION -----------
+
+def predict(model, text, max_length=128):
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    encoding = tokenizer(
+        text,
+        max_length=max_length,
+        padding='max_length',
+        truncation=True,
+        return_tensors='pt'
+    )
+
+    input_ids = encoding['input_ids'].to(device)
+    attention_mask = encoding['attention_mask'].to(device)
+
+    model = model.to(device)
+    model.eval()
+    with torch.no_grad():
+        output = model(input_ids, attention_mask).squeeze()
+        prediction = (output > 0.5).float().item()
+        return 'spam' if prediction == 1 else 'ham'
+
+# Test the model on new examples
+print(predict(model, "This is your last chance to WIN cash. Click this link"))
+print(predict(model, "I hope to see you on Monday"))

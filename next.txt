@@ -1,0 +1,131 @@
+Implementing next-word prediction using GPT-2 and
+various text generation techniques, including top-k
+sampling, temperature scaling, beam search, and
+masked word prediction.
+
+# Import necessary Hugging Face libraries
+from transformers import pipeline, set_seed
+
+# Create a text generation pipeline using GPT-2
+generator = pipeline('text-generation', model='gpt2')
+
+# Set a seed for reproducibility
+set_seed(42)
+
+# Generate 5 different continuations of the prompt with a maximum of 30 tokens
+generator("Happiness lies within and", max_length=30, num_return_sequences=5)
+
+# Import GPT-2 tokenizer
+from transformers import GPT2Tokenizer
+
+# Load the tokenizer (using openai-community's GPT-2 model)
+tokenizer = GPT2Tokenizer.from_pretrained('openai-community/gpt2')
+
+# Define an input prompt
+prompt = "Apollo 11 was the first crewed"
+
+# Tokenize the prompt
+inputs = tokenizer(prompt, return_tensors='pt')
+inputs  # Contains input_ids and attention_mask
+
+
+# Convert token IDs to human-readable tokens
+tokenizer.convert_ids_to_tokens(inputs['input_ids'][0])
+
+
+# Import GPT-2 model with language modeling head
+from transformers import GPT2LMHeadModel
+
+# Load the GPT-2 model
+model = GPT2LMHeadModel.from_pretrained('gpt2')
+
+# Pass the input tokens into the model
+outputs = model(inputs['input_ids'])
+outputs  # This includes logits (unnormalized predictions)
+
+
+# Extract the logits (raw scores before softmax)
+logits = outputs.logits
+logits.shape  # Shape: [batch_size, sequence_length, vocab_size]
+
+
+# Get logits for the last token in the sequence
+last_token_logits = logits[:, -1, :]
+last_token_logits
+
+
+import torch
+
+# Get the ID of the most probable next token (argmax)
+next_token_id = torch.argmax(last_token_logits).item()
+next_token_id
+
+
+# Decode the token ID to a string (word/piece)
+tokenizer.decode(next_token_id)
+
+
+# Repeat the above using a sampling method with temperature and top-k filtering
+
+import torch
+from transformers import GPT2LMHeadModel
+
+# Load tokenizer and model again
+tokenizer = GPT2Tokenizer.from_pretrained('openai-community/gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2')
+
+# Define a new prompt
+prompt = "The future of AI is"
+
+# Tokenize the input
+inputs = tokenizer(prompt, return_tensors='pt')
+inputs
+
+# Get model output for input prompt
+outputs = model(**inputs)
+outputs
+
+# Get the logits for the last token
+logits = outputs.logits[:, -1, :]
+logits
+
+# Top-k sampling: Get the top 10 most likely token predictions
+k = 10
+top_k_logits, top_k_indices = torch.topk(logits, k, dim=-1)
+
+# Decode top-k token predictions to readable text
+top_k_words = [tokenizer.decode(idx) for idx in top_k_indices[0]]
+print("The Top_k_words are", top_k_words)
+
+
+# Apply temperature scaling and sample next token from distribution
+temperature = 0.1
+probs = torch.nn.functional.softmax(logits / temperature, dim=-1)
+
+# Sample a token from the softmax distribution
+next_token_id = torch.multinomial(probs, num_samples=1).item()
+print("Predicted next word:", tokenizer.decode(next_token_id))
+
+
+# Generate 3 text samples using the generator pipeline
+result = generator(
+    "Once upon a time",
+    max_length=50,
+    num_return_sequences=3
+)
+
+# Print generated sentences
+for i, result in enumerate(result):
+    print(f"Sentence {i+1}: {result['generated_text']}")
+
+
+# Generate code completion using GPT-2
+generator = pipeline("text-generation", model="openai-community/gpt2")
+result = generator(
+    "def factorial(n):\n if n==0:\n  return 1\n else:",
+    max_length=50
+)
+
+# Print the completed code
+print(result[0]['generated_text'])
+
