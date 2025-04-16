@@ -1,0 +1,19 @@
+ping
+set person dsr
+get person
+set language1: "html"
+get language:1
+KEYS *
+KEYS *language*
+ KEYS *developer*
+del language1:
+dump developer:1
+exists developer:1
+exists year
+HMSET language name "hi" developer "hik" year 2100 rank 19
+HGET language name
+ HKEYS language
+HLEN language
+HVALS language
+ HDEL language name
+ HKEYS language

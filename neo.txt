@@ -1,0 +1,128 @@
+CREATE (mumbai:City {name: 'Mumbai', population: 18394912})
+CREATE (delhi:City {name: 'Delhi', population: 16349831})
+CREATE (chennai:City {name: 'Chennai', population: 8653521})
+CREATE (kolkata:City {name: 'Kolkata', population: 14112536})
+CREATE (bangalore:City {name: 'Bangalore', population: 8499399})
+CREATE (hyderabad:City {name: 'Hyderabad', population: 7749334})
+CREATE (csmt:Station {name: 'Chhatrapati Shivaji Maharaj Terminus', code: 'CSMT'})
+CREATE (mmct:Station {name: 'Mumbai Central', code: 'MMCT'})
+CREATE (ndls:Station {name: 'New Delhi', code: 'NDLS'})
+CREATE (mas:Station {name: 'MGR Chennai Central', code: 'MAS'})
+CREATE (hwhStation:Station {name: 'Howrah Junction', code: 'HWH'})
+CREATE (sbc:Station {name: 'KSR Bengaluru', code: 'SBC'})
+CREATE (scStation:Station {name: 'Secunderabad Junction', code: 'SC'})
+CREATE (mumbai)-[:HAS_STATION]->(csmt)
+CREATE (mumbai)-[:HAS_STATION]->(mmct)
+CREATE (delhi)-[:HAS_STATION]->(ndls)
+CREATE (chennai)-[:HAS_STATION]->(mas)
+CREATE (kolkata)-[:HAS_STATION]->(hwhStation)
+CREATE (bangalore)-[:HAS_STATION]->(sbc)
+CREATE (hyderabad)-[:HAS_STATION]->(scStation)
+
+
+MATCH (mmct:Station {code: 'MMCT'})
+MATCH (ndls:Station {code: 'NDLS'})
+CREATE (mmct)-[:CONNECTS {distance: 1386, travel_time: 'PT 15H 32M'}]->(ndls)
+MATCH (ndls:Station {code: 'NDLS'})
+MATCH (hwhStation:Station {code: 'HWH'})
+CREATE (ndls)-[:CONNECTS {distance: 1452, travel_time: 'PT 17H 5M'}]->(hwhStation)
+MATCH (mas:Station {code: 'MAS'})
+MATCH (sbc:Station {code: 'SBC'})
+CREATE (mas)-[:CONNECTS {distance: 497, travel_time: 'PT 6H 30M'}]->(sbc)
+MATCH (sbc:Station {code: 'SBC'})
+MATCH (scStation:Station {code: 'SC'})
+CREATE (sbc)-[:CONNECTS {distance: 705, travel_time: 'PT 12H 5M'}]->(scStation)
+MATCH (scStation:Station {code: 'SC'})
+MATCH (csmt:Station {code: 'CSMT'})
+CREATE (scStation)-[:CONNECTS {distance: 779, travel_time: 'PT 17H 00M'}]->(csmt)
+MATCH (hwhStation:Station {code: 'HWH'})
+MATCH (mas:Station {code: 'MAS'})
+
+
+
+CREATE (hwhStation)-[:CONNECTS {distance: 1663, travel_time: 'PT 27H 30M'}]->(mas)
+
+CREATE (tejasRaj:Train {number: '12951', name: 'Tejas Rajdhani', capacity: 1000})
+CREATE (howrah:Train {number: '12302', name: 'Howrah Rajdhani', capacity: 980})
+CREATE (mysVandeBharat:Train {number: '20607', name: 'MYS Vandebharat', capacity: 800})
+CREATE (rajdhaniExp:Train {number: '22691', name: 'Rajdhani Express', capacity: 1200})
+CREATE (konarkExpress:Train {number: '11020', name: 'Konark Express', capacity: 1100})
+CREATE (chennaiMail:Train {number: '12839', name: 'Chennai Mail', capacity: 1300})
+
+
+MATCH (mmct:Station {code: 'MMCT'})
+MATCH (ndls:Station {code: 'NDLS'})
+MATCH (t:Train {number: '12951'})
+CREATE (t)-[:OPERATES_ON {origin: mmct.code, destination: ndls.code}]->(mmct)
+CREATE (t)-[:OPERATES_ON {origin: mmct.code, destination: ndls.code}]->(ndls)
+MATCH (ndls:Station {code: 'NDLS'})
+MATCH (hwhStation:Station {code: 'HWH'})
+MATCH (t:Train {number: '12302'})
+CREATE (t)-[:OPERATES_ON {origin: ndls.code, destination: hwhStation.code}]->(ndls)
+CREATE (t)-[:OPERATES_ON {origin: ndls.code, destination: hwhStation.code}]->(hwhStation)
+MATCH (mas:Station {code: 'MAS'})
+MATCH (sbc:Station {code: 'SBC'})
+MATCH (t:Train {number: '20607'})
+CREATE (t)-[:OPERATES_ON {origin: mas.code, destination: sbc.code}]->(mas)
+CREATE (t)-[:OPERATES_ON {origin: mas.code, destination: sbc.code}]->(sbc)
+MATCH (sbc:Station {code: 'SBC'})
+MATCH (scStation:Station {code: 'SC'})
+MATCH (t:Train {number: '22691'})
+CREATE (t)-[:OPERATES_ON {origin: sbc.code, destination: scStation.code}]->(sbc)
+CREATE (t)-[:OPERATES_ON {origin: sbc.code, destination: scStation.code}]->(scStation)
+MATCH (scStation:Station {code: 'SC'})
+MATCH (csmt:Station {code: 'CSMT'})
+MATCH (t:Train {number: '11020'})
+CREATE (t)-[:OPERATES_ON {origin: scStation.code, destination: csmt.code}]->(scStation)
+CREATE (t)-[:OPERATES_ON {origin: scStation.code, destination: csmt.code}]->(csmt)
+MATCH (hwhStation:Station {code: 'HWH'})
+MATCH (mas:Station {code: 'MAS'})
+MATCH (t:Train {number: '12839'})
+CREATE (t)-[:OPERATES_ON {origin: hwhStation.code, destination: mas.code}]->(hwhStation)
+CREATE (t)-[:OPERATES_ON {origin: hwhStation.code, destination: mas.code}]->(mas)
+
+
+
+MATCH (c:City {name: 'Mumbai'})-[:HAS_STATION]->(s:Station)
+RETURN c.name AS City, s.name AS Station
+
+MATCH (t:Train {name: 'Tejas Rajdhani'})-[:OPERATES_ON]->(s1:Station)-[:CONNECTS]->(s2:Station)
+RETURN s1.name AS From, s2.name AS To, t.name AS Train
+
+MATCH (c1:City {name: 'Bangalore'})-[:HAS_STATION]->(s1:Station)-[:CONNECTS]-(s2:Station)<-
+[:HAS_STATION]-(c2:City)
+WHERE c1 <> c2
+RETURN c1.name AS From, c2.name AS To
+
+
+MATCH (c:City {name: 'Mumbai'})-[:HAS_STATION]->(s:Station)<-[:OPERATES_ON]-(t:Train)
+RETURN c.name AS City, s.name AS Station, t.name AS Train
+
+MATCH (t:Train)
+RETURN t.name AS Train, t.capacity AS Capacity
+ORDER BY t.capacity DESC
+
+MATCH (s1:Station)-[r:CONNECTS]->(s2:Station)
+RETURN s1.name AS From, s2.name AS To, r.distance AS Distance
+ORDER BY r.distance DESC
+LIMIT 1
+
+MATCH (c:City)
+RETURN SUM(c.population) AS TotalPopulation
+
+
+MATCH (c:City)-[:HAS_STATION]->(s:Station)-[r:CONNECTS]-(s2:Station)
+RETURN c, s, r, s2
+
+
+MATCH (t:Train)-[:OPERATES_ON]->(s:Station)-[:CONNECTS]-(s2:Station)
+RETURN t, s, s2
+
+
+MATCH (c:City {name: 'Mumbai'})-[:HAS_STATION]->(s:Station)-[r:CONNECTS]-(s2:Station)
+RETURN c, s, r, s2
+
+
+
+
+

@@ -1,0 +1,425 @@
+CREATE TABLE Product (
+ ID VARCHAR2(10),
+ CUST XMLTYPE
+);
+
+
+INSERT INTO Product VALUES(
+    1,XMLTYPE('
+    <CUSTOMER>
+        <CID>C001</CID>
+        <NAME>Ram</NAME>
+        <CITY>Mumabi</CITY>
+        <ORDER>
+            <OID>O001</OID>
+            <ODATE>25/01/2025 </ODATE>
+            <ORDER_ITEM>
+                <NAME>MOUSE</NAME>
+                <QTY>25</QTY>
+            </ORDER_ITEM>
+            <ORDER_ITEM>
+                <NAME>KEYBOARD</NAME>
+                <QTY>35</QTY>
+            </ORDER_ITEM>
+        </ORDER>
+
+        <ORDER>
+            <OID>O002</OID>
+            <ODATE>26/01/2025 </ODATE>
+            <ORDER_ITEM>
+                <NAME>MOUSE</NAME>
+                <QTY>25</QTY>
+            </ORDER_ITEM>
+            <ORDER_ITEM>
+                <NAME>KEYBOARD</NAME>
+                <QTY>35</QTY>
+            </ORDER_ITEM>
+        </ORDER>
+    </CUSTOMER>
+
+
+    ')
+);
+
+INSERT INTO Product VALUES (
+ 2, XMLTYPE('
+ <CUSTOMER>
+ <CID>C002</CID>
+ <NAME>Shyam</NAME>
+ <CITY>Pune</CITY>
+ <ORDER>
+ <OID>O003</OID>
+ <ODATE>02/02/2006</ODATE>
+ <ORDER_ITEM>
+ <NAME>Monitor</NAME>
+ <QTY>7</QTY>
+ </ORDER_ITEM>
+ <ORDER_ITEM>
+ <NAME>CPU</NAME>
+ <QTY>15</QTY>
+ </ORDER_ITEM>
+ </ORDER>
+ </CUSTOMER>')
+);
+
+
+
+SELECT
+p.CUST.extract('/CUSTOMER/ORDER[OID="O001"]/ORDER_ITEM').getStringVal() AS "Order_Items"
+FROM Product p;
+
+
+SELECT p.CUST.extract('/CUSTOMER').getStringVal()
+FROM Product p
+WHERE p.CUST.extract('//CUSTOMER/CID/text()').getStringVal() = 'C001';
+
+
+INSERT INTO Product VALUES (5, NULL);
+
+
+INSERT INTO Product VALUES (
+ 4, XMLTYPE('
+ <CUSTOMER>
+ <CID>C004</CID>
+ <NAME>Laloo</NAME>
+ <CITY>Patna</CITY>
+ <ORDER>
+ <OID>O005</OID>
+ <ODATE></ODATE>
+
+<ORDER_ITEM><NAME>Fodder</NAME><QTY>50</QTY></ORDER_ITEM>
+ </ORDER>
+ </CUSTOMER>')
+);
+
+
+SELECT ID
+FROM Product
+WHERE CUST IS NULL;
+
+
+SELECT ID, p.CUST.extract('/CUSTOMER/ORDER/OID/text()').getStringVal()
+AS "Order_ID"
+FROM Product p
+WHERE p.CUST.extract('/CUSTOMER/ORDER/ODATE/text()').getStringVal()
+IS NULL;
+
+
+
+SELECT
+p.CUST.extract('/CUSTOMER/ORDER[OID="O001"]/ODATE/text()').getStringVal() AS "Order_Date"
+FROM Product p;
+
+
+
+SELECT
+p.CUST.extract('/CUSTOMER/ORDER[OID="O001"]/ORDER_ITEM[NAME="
+Mouse"]/QTY/text()').getNumberVal() AS "Quantity"
+FROM Product p;
+
+
+SELECT
+  EXTRACTVALUE(p.CUST, '/CUSTOMER/ORDER[OID="O001"]/ORDER_ITEM[NAME="Mouse"]/QTY') AS "Quantity"
+FROM Product p;
+
+
+
+SELECT p.CUST.extract('/CUSTOMER/ORDER/ODATE/text()').getStringVal()
+AS "Order_Date"
+FROM Product p
+WHERE p.CUST.extract('/CUSTOMER/ORDER/ODATE/text()') IS NOT NULL;
+
+
+
+
+create table employee(dept_id number(5), employee_spec xmltype)
+
+
+
+insert into employee
+ values(001,
+ xmltype('<emp id="1">
+ <name>viraj</name>
+ <email>viraj@gmail.com</email>
+ <acc_no>1234</acc_no>
+ <mgremail>abc@yahoo.com</mgremail>
+ <doj>23-jul-2005</doj>
+ </emp>'))
+insert into employee
+ values(002,
+ xmltype('<emp id="2">
+ <name>Deepak</name>
+ <email>depak@gmail.com</email>
+ <acc_no>45554</acc_no>
+ <mgremail>abc@yahoo.com</mgremail>
+ <doj>23-jul-2005</doj>
+ </emp>'))
+insert into employee
+ values(003,
+ xmltype('<emp id="3">
+ <name>Shubham Singh</name>
+ <email>shubham@gmail.com</email>
+ <acc_no>3535734</acc_no>
+ <mgremail>abc@yahoo.com</mgremail>
+ <doj>23-jul-2005</doj>
+ </emp>'))
+
+ insert into employee
+ values(004,
+ xmltype('<emp id="4">
+ <name>Atharva</name>
+ <email>atharva@gmail.com</email>
+ <acc_no>125234</acc_no>
+ <mgremail>abc@yahoo.com</mgremail>
+ <doj>23-jul-2005</doj>
+ </emp>'))
+
+
+
+select e.employee_spec.extract('emp/name/text()').getStringVal()
+ "Employee_Name"
+ from employee e 
+
+
+select e.employee_spec.extract('emp/acc_no/text()').getStringVal()
+ "Employee Account-No"
+ from employee e 
+
+
+select e.employee_spec.extract('emp/name/text()').getStringVal(),
+ e.employee_spec.extract('emp/acc_no/text()').getStringVal(),
+ e.employee_spec.extract('emp/email/text()').getStringVal()
+ from employee e
+
+
+update employee e set employee_spec = xmltype
+ ('<emp id="4">
+ <name>Pratham</name>
+ </emp>')
+ where e.employee_spec.extract('//acc_no/text()').getStringVal()='125234' 
+
+
+delete from employee e
+ where e.employee_spec.extract('//name/text()').getStringVal()='Pratham'
+
+
+
+
+
+create table candixml (id varchar2(10), resume xmltype); 
+
+
+insert into candixml values('a001',
+ xmltype(
+ '<emp id="1">
+ <name>jigi</name>
+ <address>virar</address>
+ <skill>
+ <compskill>
+ <lang>java</lang>
+ <os>linux</os>
+ </compskill>
+ </skill>
+ <expr>
+ <programer>3</programer>
+ <proj_mgr>1</proj_mgr>
+ </expr>
+ <objective>to become a good programer</objective>
+ </emp>'))
+insert into candixml values('a002',
+ xmltype(
+ '<emp id="2">
+ <name>viraj</name>
+ <address>dombivli</address>
+ <skill>
+ <compskill> 
+
+insert into candixml values('a002',
+ xmltype(
+ '<emp id="2">
+ <name>viraj</name>
+ <address>dombivli</address>
+ <skill>
+ <compskill> 
+
+<lang>java</lang>
+ <os>linux</os>
+ </compskill>
+ </skill>
+ <expr>
+ <programer>4</programer>
+ <proj_mgr>2</proj_mgr>
+ </expr>
+ <objective>to become a good programer</objective>
+ </emp>'))
+insert into candixml values('a003',
+ xmltype(
+ '<emp id="3">
+ <name>shubham</name>
+ <address>chembur</address>
+ <skill>
+ <compskill>
+ <lang>java</lang>
+ <os>linux</os>
+ </compskill>
+ </skill>
+ <expr>
+ <programer>5</programer>
+ <proj_mgr>5</proj_mgr>
+ </expr>
+ <objective>to become a good programer</objective>
+ </emp>'))
+
+select e.resume.getClobval() "employee spec"
+ from candixml e where
+ e.resume.extract('//skill/compskill/lang/text()').getStringVal()='java'
+ and e.resume.extract('//expr/programer/text()').getStringVal()='5'
+
+
+select e.resume.extract('emp/name/text()').getStringVal() "EName"
+ from candixml e
+ where e.resume.existsNode('/emp/expr[proj_mgr>="1"]') = 1 
+
+
+ select
+ e.resume.extract('emp/name/text()').getStringVal() "EName",
+ e.resume.extract('emp/skill/compskill/lang/text()').getStringVal()
+"ESkillLang",
+ e.resume.extract('emp/skill/compskill/os/text()').getStringVal() "ESkillNw" 
+  from candixml e 
+
+
+delete from candixml e
+ where e.resume.extract('//address/text()').getStringVal() ='virar' 
+
+
+update candixml e
+ set resume=XMLType('<emp><name>Shubham</name></emp>')
+ where id='a003' ;
+
+
+
+create table exam(exam_id number(5), exam_data XMLType); 
+
+
+INSERT INTO exam VALUES (
+ 101,
+ XMLType('
+ <Exam>
+ <ExamID>EX001</ExamID>
+ <Year>2024</Year>
+ <Semester>1</Semester>
+ <Class>10 A</Class>
+ <Course>
+ <CourseID>C001</CourseID>
+ <CourseName>Mathematics</CourseName>
+ <Faculty>Shubham</Faculty>
+ <Marks>60</Marks>
+ <Student>
+ <StudentID>S001</StudentID>
+ <StudentName>Deepak</StudentName>
+ </Student>
+ </Course>
+ </Exam>')
+);
+INSERT INTO exam VALUES (
+ 102,
+ XMLType('
+ <Exam>
+ <ExamID>EX002</ExamID>
+ <Year>2024</Year>
+ <Semester>2</Semester>
+ <Class>10 B</Class>
+ <Course>
+ <CourseID>C002</CourseID>
+ <CourseName>English</CourseName>
+ <Faculty>Viraj</Faculty>
+ <Marks>90</Marks>
+ <Student>
+ <StudentID>S002</StudentID>
+ <StudentName>Durgesh</StudentName>
+ </Student>
+ </Course>
+ </Exam>')
+);
+
+SELECT
+ e.exam_data.EXTRACT('//Course/CourseName/text()').getStringVal() AS
+"Course_Name"
+FROM
+ exam e
+WHERE
+ e.exam_data.EXTRACT('//ExamID/text()').getStringVal() = 'EX001';
+
+
+SELECT
+
+e.exam_data.EXTRACT('//Course[CourseID="C001"]/Student/StudentID/text()').g
+etStringVal() AS "Student_ID",
+
+e.exam_data.EXTRACT('//Course[CourseID="C001"]/Student/StudentName/text()
+').getStringVal() AS "Student_Name"
+FROM
+ exam e;
+
+
+SELECT
+ CASE
+ WHEN
+e.exam_data.EXTRACT('//Course[CourseID="C002"]').getStringVal() IS NOT
+NULL
+ THEN 'Course Exists'
+ ELSE 'Course Does Not Exist'
+ END AS "Course_Existence"
+FROM
+ exam e
+WHERE
+ e.exam_data.EXTRACT('//ExamID/text()').getStringVal() = 'EX002';
+
+SELECT
+ e.exam_data.EXTRACT('//ExamID/text()').getStringVal() AS "Exam_ID",
+ e.exam_data.EXTRACT('//Class/text()').getStringVal() AS "Class"
+FROM
+ exam e
+WHERE
+ NOT EXISTS (
+ SELECT 1
+ FROM dual
+ WHERE e.exam_data.EXTRACT('//Course/Student').getStringVal() IS NOT
+NULL
+ );
+
+SELECT
+ e.exam_data.EXTRACT('//ExamID/text()').getStringVal() AS "Exam_ID",
+ e.exam_data.EXTRACT('//Class/text()').getStringVal() AS "Class",
+ e.exam_data.EXTRACT('//Course/CourseName/text()').getStringVal() AS
+"Course_Name"
+FROM
+ exam e
+WHERE
+ e.exam_data.EXTRACT('//Class/text()').getStringVal() = '10 A'
+ AND e.exam_data.EXTRACT('//Semester/text()').getStringVal() = '1';
+
+
+
+SELECT
+
+MAX(TO_NUMBER(e.exam_data.EXTRACT('//Course/Marks/text()').getStringV
+al())) AS "Maximum_Marks",
+
+MIN(TO_NUMBER(e.exam_data.EXTRACT('//Course/Marks/text()').getStringVa
+l())) AS "Minimum_Marks"
+FROM exam e;
+
+
+SELECT
+
+COUNT(e.exam_data.EXTRACT('//Course/Student/StudentID/text()').getStringVa
+l()) AS "Total_Students"
+FROM exam e;
+
+
+
+
+
+

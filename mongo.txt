@@ -1,0 +1,78 @@
+use test
+show dbs
+db.dropDatabase()
+show dbs
+use students
+
+use students
+db.createCollection_name.insert({Student1: “Durgesh”, age:24})
+db.createCollection_name.insert({Student2: “Shubham”, age:23})
+db.students.find()
+show collections
+db.createCollections(“students”)
+db.createCollections(“students25”)
+db.createCollections(“teachers” , {capped: true, sixe: 987456321})
+show collections
+db.collection_name.drop()
+use beginnersbookdb
+show collections
+db.teacher.drop()
+show collections
+
+
+var beginners = [{“Studentid”:111 , “StudentName”: “Shubham”},
+ {“Studentid”:112 , “StudentName”: “Durgesh”},
+ {“Studentid”:113 , “StudentName”: “Manish”}]
+db.students.insert(beginners);
+db.students.find()
+db.students.find().pretty()
+
+
+
+db.students.find().forEach(printjson)
+db.students.find().forEach(printjson).pretty()
+db.students.find(StudentName: “Durgesh” }).pretty()
+db.students.find({“Studentid”:{$ne:113}}).pretty()
+use beginnersbook
+db.createCollection(“got”)
+varabc = [{>varabc = [}]
+ {
+ "_id" :ObjectId("59bd2e73ce524b733f14dd65"),
+ "name": "Jon Snow",
+ "age" : 32
+ },
+ {
+ "_id" :ObjectId("59bd2e8bce524b733f14dd66"),
+ "name": "Khal Drogo",
+ "age" : 36
+ },
+ {
+ "_id" :ObjectId("59bd2e9fce524b733f14dd67"),
+ "name": "Sansa Stark",
+ "age" : 20
+ },
+ {
+ "_id" :ObjectId("59bd2ec5ce524b733f14dd68"),
+ "name": "Lord Varys",
+ "age" : 42
+ },
+ ];
+
+
+
+
+db.got.update({"name":"Jon Snow"},{$set:{"name":"Kit Harington"}})
+db.got.update({"name":"Jon Snow"},{$set:{"name":"Kit Harington"}},
+{multi:true})
+db.got.save({"_id" : ObjectId("59bd2e73ce524b733f14dd65"),"name": "Jon
+Snow", "age":30})
+db.got.find().pretty()
+db.students.remove({"Studentid": 1002})
+db.students.find().pretty()
+db.walkingdead.remove({"age":32},1)
+db.students.find(),{"_id":0,"Studentid":1}
+
+
+
+
+
